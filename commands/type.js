@@ -1,5 +1,7 @@
 const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 const { resolveDisplayName } = require('../core/displayNames');
+const { start } = require('../core/presenceSimulation');
+const { resolveTargetJid } = require('../core/target');
 
 module.exports = {
     name: 'type',
@@ -11,31 +13,25 @@ module.exports = {
         let targetJid = ctx.from;
         let targetDisplay = "Contact WhatsApp";
 
-        if (arg) targetJid = `${arg.replace(/[^0-9]/g, '')}@s.whatsapp.net`;
-        targetJid = jidNormalizedUser(targetJid);
+        const target = resolveTargetJid(arg, ctx, botState);
+        if (!target) {
+            await sock.sendMessage(myJid, { text: `⚠️ Contact introuvable : *${arg}*.` }, { quoted: msg });
+            return;
+        }
+        targetJid = target.jid || jidNormalizedUser(targetJid);
 
         if (targetJid.endsWith('@g.us')) {
             try { targetDisplay = (await sock.groupMetadata(targetJid)).subject; } catch { targetDisplay = "Ce Groupe"; }
         } else targetDisplay = (await resolveDisplayName(sock, targetJid, botState, ctx.from === targetJid ? msg.pushName : '')).name;
 
-        if (botState.activeIntervals[targetJid]) clearInterval(botState.activeIntervals[targetJid]);
         try {
             await sock.sendPresenceUpdate('available', targetJid);
-            await sock.sendPresenceUpdate('composing', targetJid);
         } catch (e) { }
-
-        botState.activeIntervals[targetJid] = setInterval(async () => {
-            if (botState.currentSock !== sock) {
-                clearInterval(botState.activeIntervals[targetJid]);
-                delete botState.activeIntervals[targetJid];
-                return;
-            }
-            try { await sock.sendPresenceUpdate('composing', targetJid); }
-            catch (err) {
-                clearInterval(botState.activeIntervals[targetJid]);
-                delete botState.activeIntervals[targetJid];
-            }
-        }, 8000);
+        const started = await start(sock, botState, targetJid, 'composing');
+        if (!started) {
+            await sock.sendMessage(myJid, { text: '⚠️ Impossible de maintenir l’état « écrit » : la connexion WhatsApp n’est pas disponible.' }, { quoted: msg });
+            return;
+        }
 
         await sock.sendMessage(myJid, { text: `╭━━━〔 ✍️ GHOST TYPE 〕━━━╮\n┃ ✅ Simulation activée\n┃ 👤 Cible : *${targetDisplay}*\n┃ 🔁 Arrêt : !stop\n╰━━━━━━━━━━━━━━━━━━━━━━╯` });
     }

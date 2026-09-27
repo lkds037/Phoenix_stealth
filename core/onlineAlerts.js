@@ -53,7 +53,7 @@ function findTarget(query, botState) {
     }
     if (digits.length >= 7) {
         const jid = `${digits}@s.whatsapp.net`;
-        return { jid, name: String(botState.profileNames?.[jid] || 'Contact WhatsApp') };
+        return { jid, name: 'Contact WhatsApp' };
     }
     return null;
 }

@@ -11,6 +11,7 @@ const { setContactName, isNonPersonJid, replaceContactBook } = require('./core/c
 const { rememberContact } = require('./core/displayNames');
 const { registerMapping } = require('./core/lidResolver');
 const onlineAlerts = require('./core/onlineAlerts');
+const presenceSimulation = require('./core/presenceSimulation');
 
 // ==========================================
 // ANTI-CRASH
@@ -149,8 +150,9 @@ const botState = {
     isSavingContacts: false,
     isSavingStatus: false,
     currentSock: null,
-    onlineUsers: new Map(),
-    subscribedJids: new Set(),
+            onlineUsers: new Map(),
+            presenceModes: {},
+            subscribedJids: new Set(),
     loginMode: null
 };
 
@@ -440,6 +442,9 @@ async function startStealthBot() {
                     botState.PHONE_NUMBER = connectedNumber;
                 }
                 try { await sock.sendPresenceUpdate('unavailable'); } catch (e) { }
+                try { await presenceSimulation.resumeAll(sock, botState); } catch (e) {
+                    terminalLog('⚠', 'PRESENCE', `reprise impossible · ${e.message}`, ANSI.yellow);
+                }
             }
         });
 
@@ -458,7 +463,13 @@ async function startStealthBot() {
                     }
                     return;
                 }
-                const added = syncWhatsAppContacts(contacts, sock);
+                const scopedContacts = directChatJids.size > 0
+                    ? (contacts || []).filter((contact) => [contact?.id, contact?.phoneNumber]
+                        .filter(Boolean)
+                        .map((value) => jidNormalizedUser(value))
+                        .some((jid) => directChatJids.has(jid)))
+                    : contacts;
+                const added = syncWhatsAppContacts(scopedContacts, sock);
                 if (added > 0) terminalLog('＋', 'HISTORY', `+${added} contact(s) · total ${Object.keys(botState.contactNames).length}`);
                 if (isLatest) terminalLog('✓', 'HISTORY', 'synchronisation complète', ANSI.green);
             } catch (e) { }

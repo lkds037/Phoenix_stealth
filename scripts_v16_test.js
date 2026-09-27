@@ -5,6 +5,7 @@ const statut = require('./commands/statut');
 const { resolveDisplayName } = require('./core/displayNames');
 const { classifyRTT } = require('./core/silentTracker');
 const { handleMessages } = require('./core/messages');
+const { resolveTargetJid } = require('./core/target');
 
 (async () => {
   const state = { PHONE_NUMBER: '33123456789', contactNames: { '33111111111@s.whatsapp.net': 'Blue Bird' }, profileNames: {}, onlineAlerts: {}, ONLINE_ALERTS_JSON: '/tmp/phoenix-alerts-test.json', scheduleSaveContacts() {} };
@@ -18,6 +19,8 @@ const { handleMessages } = require('./core/messages');
   assert.equal((await resolveDisplayName(sock, '33133333333@s.whatsapp.net', state, 'Contact WhatsApp')).name, 'Ingrid');
   state.profileNames['33144444444@s.whatsapp.net'] = 'Profil Inconnu';
   assert.equal((await resolveDisplayName(sock, '33144444444@s.whatsapp.net', state)).name, 'Contact WhatsApp');
+  assert.equal(resolveTargetJid('Blue Bird', { from: '33199999999@s.whatsapp.net' }, state).jid, '33111111111@s.whatsapp.net');
+  assert.equal(resolveTargetJid('inconnu', { from: '33199999999@s.whatsapp.net' }, state), null);
 
   sent.length = 0;
   await tagall.execute(sock, { key: { remoteJid: '120@g.us', id: 'cmd' }, message: { extendedTextMessage: { contextInfo: { stanzaId: 'original-message', participant: '33111111111@s.whatsapp.net', quotedMessage: { conversation: 'hello' } } } } }, state, { from: '120@g.us', isGroup: true, args: ['rappel'], commandName: 'tagall' });
