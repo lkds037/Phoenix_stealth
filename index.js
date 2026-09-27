@@ -7,7 +7,7 @@ const path = require('path');
 const { handleMessages, handleReceipts } = require('./core/messages');
 const { handleDeliveryReceipt, handleMessagesUpdate, handleRawReceipt } = require('./core/silentTracker');
 const { incrementMessagesSent } = require('./core/stats');
-const { setContactName, isNonPersonJid } = require('./core/contacts');
+const { setContactName, isNonPersonJid, replaceContactBook } = require('./core/contacts');
 const { rememberContact } = require('./core/displayNames');
 const { registerMapping } = require('./core/lidResolver');
 const onlineAlerts = require('./core/onlineAlerts');
@@ -196,7 +196,7 @@ function scheduleSaveContacts() {
 }
 
 function getWhatsAppContactName(contact) {
-    const savedName = String(contact?.name || contact?.notify || contact?.verifiedName || '').trim();
+    const savedName = String(contact?.name || '').trim();
     if (savedName && savedName !== '.') return savedName;
     return '';
 }
@@ -212,8 +212,7 @@ function syncWhatsAppContacts(contacts, sock) {
         // apparaître comme des contacts séparés dans le carnet.
         if (isNonPersonJid(jid) || jid.endsWith('@lid')) continue;
         if (name && !jid.endsWith('@g.us')) {
-            // `name` est le nom du carnet ; `notify` et `verifiedName`
-            // complètent les synchronisations où le carnet est partiel.
+            // Seul `name` représente un nom réellement enregistré dans le carnet.
             if (name && botState.contactNames[jid] !== name) {
                 botState.contactNames[jid] = name;
                 setContactName(jid, name);
@@ -446,6 +445,19 @@ async function startStealthBot() {
 
         sock.ev.on('messaging-history.set', ({ chats, contacts, messages, isLatest }) => {
             try {
+                const directChatJids = new Set(
+                    (chats || [])
+                        .map((chat) => jidNormalizedUser(chat?.id || ''))
+                        .filter((jid) => jid.endsWith('@s.whatsapp.net'))
+                );
+                if (isLatest && Array.isArray(contacts) && contacts.length > 0) {
+                    const rebuilt = replaceContactBook(contacts, directChatJids);
+                    if (rebuilt) {
+                        botState.contactNames = rebuilt;
+                        terminalLog('✓', 'HISTORY', `carnet reconstruit · ${Object.keys(rebuilt).length} nom(s) enregistré(s)`, ANSI.green);
+                    }
+                    return;
+                }
                 const added = syncWhatsAppContacts(contacts, sock);
                 if (added > 0) terminalLog('＋', 'HISTORY', `+${added} contact(s) · total ${Object.keys(botState.contactNames).length}`);
                 if (isLatest) terminalLog('✓', 'HISTORY', 'synchronisation complète', ANSI.green);
@@ -506,7 +518,7 @@ async function startStealthBot() {
                     } catch (e) { console.error('⚠️ [ALERTE ONLINE]', e.message); }
                 } else if (status === 'unavailable') {
                     botState.onlineUsers.delete(jid);
-                    onlineAlerts.markOffline(botState, jid);
+                    await onlineAlerts.markOffline(sock, botState, jid);
                 }
             }
         });

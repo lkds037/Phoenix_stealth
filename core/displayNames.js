@@ -54,16 +54,20 @@ function saveResolvedName(jid, name, botState) {
     return changed;
 }
 
-function contactNameFromObject(contact) {
-    // Baileys expose parfois uniquement `notify` ou `verifiedName`,
-    // notamment après une nouvelle association ou une synchronisation partielle.
-    return clean(contact?.name) || clean(contact?.notify) || clean(contact?.verifiedName);
+function contactBookNameFromObject(contact) {
+    return clean(contact?.name);
+}
+
+function contactDisplayNameFromObject(contact) {
+    return contactBookNameFromObject(contact);
 }
 
 function rememberContact(contact, botState) {
     if (!contact?.id || !botState) return '';
     const jid = jidNormalizedUser(contact.id);
-    const name = contactNameFromObject(contact);
+    // Seul `name` appartient au carnet enregistré. Les champs notify/verifiedName
+    // restent des replis temporaires et ne doivent pas gonfler !contacts.
+    const name = contactBookNameFromObject(contact);
     if (!name) return '';
     if (jid.endsWith('@lid') && contact?.phoneNumber) {
         registerMapping(jid, contact.phoneNumber);
@@ -95,7 +99,7 @@ async function resolveDisplayName(sock, jid, botState, fallback = '') {
         const candidates = [normalized, phoneJid(phone)];
         for (const key of candidates) {
             const contact = contacts[key];
-            const contactName = contactNameFromObject(contact);
+            const contactName = contactDisplayNameFromObject(contact);
             if (contactName) {
                 saveResolvedName(key, contactName, botState);
                 return { name: contactName, number: phone || numberOf(key) };
@@ -103,8 +107,7 @@ async function resolveDisplayName(sock, jid, botState, fallback = '') {
         }
     }
 
-    const profileFallback = clean(fallback) || clean(botState?.profileNames?.[normalized]) || clean(botState?.profileNames?.[phoneJid(phone)]);
-    return { name: profileFallback || 'Contact WhatsApp', number: phone };
+    return { name: 'Contact WhatsApp', number: phone };
 }
 
 function getDisplayNameSync(jid, botState, fallback = '') {

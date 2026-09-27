@@ -23,11 +23,11 @@ Puis saisir le code affiché dans WhatsApp : **Appareils connectés → Associer
 
 ## Règle des noms
 
-Le bot n’utilise pas les noms de profil WhatsApp pour afficher une personne. Il privilégie le nom synchronisé depuis le carnet WhatsApp, puis les correspondances JID/LID nécessaires à la résolution technique. Les groupes, chaînes et autres JID non personnels sont exclus du carnet de contacts et ne sont pas mélangés aux contacts individuels.
+Le bot utilise uniquement le champ de nom réellement enregistré dans le carnet pour alimenter `!contacts` et les affichages visibles. Les noms de profil WhatsApp (`notify`, `verifiedName`) ne sont jamais ajoutés au carnet ni utilisés comme faux noms enregistrés. Les groupes, chaînes et autres JID non personnels sont exclus du carnet de contacts.
 
 Cette règle s’applique aux statuts, messages supprimés, vues uniques, alertes online, mentions et messages privés envoyés par le bot. Il n’est donc pas nécessaire d’utiliser `setnom` ou `save` pour renommer manuellement les contacts.
 
-Si un numéro n’existe réellement pas dans le carnet WhatsApp, Phoenix peut afficher le nom de profil reçu temporairement. Les libellés numériques ou génériques tels que `Contact WhatsApp` sont filtrés et ne remplacent pas un nom enregistré. La recherche vérifie à la fois la mémoire de session et le carnet local afin de gérer les statuts reçus avant la synchronisation complète des contacts.
+Si un numéro n’existe réellement pas dans le carnet WhatsApp, Phoenix affiche `Contact WhatsApp` ou le numéro résolu, sans inventer un nom. La recherche vérifie à la fois la mémoire de session et le carnet local afin de gérer les statuts reçus avant la synchronisation complète des contacts.
 
 ## Commandes principales
 
@@ -90,6 +90,8 @@ Les fichiers d’authentification et le dossier `Phoenix_Media/` sont sensibles 
 - **Terminal discret** : les logs de chargement, de suppression fantôme, de présence et de synchronisation sont masqués par défaut. `PHOENIX_VERBOSE=true` réactive le diagnostic développeur.
 - **`!health`** : état privé du noyau, uptime, caches, contacts, présences et alertes, sans chemin local ni secret.
 - **Accueil client** : page web responsive et lisible, avec état opérationnel et version, sans donnée sensible.
+- **Carnet fiable** : l’historique WhatsApp et le carnet disponible à la connexion sont synchronisés automatiquement ; seuls les noms enregistrés sont conservés, sans gonfler la liste avec les profils.
+- **Alertes online robustes** : recherche par nom ou numéro, prise en charge des LID et notification sur présence disponible, écriture ou enregistrement, avec remise à zéro hors ligne.
 - **Nettoyage complet** : les fichiers média associés aux statuts expirés sont supprimés avec leur entrée de cache après 24 heures.
 - **Rappels robustes** : les formats incomplets ou invalides comme `10mfoo` sont refusés au lieu d’être partiellement interprétés.
 - **Terminal portable** : bannière de démarrage et événements de connexion, pairing, synchronisation et reconnexion affichés de façon compacte, quel que soit l’hébergement (Termux, VPS, Docker ou serveur Node.js).

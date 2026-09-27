@@ -17,7 +17,7 @@ const { handleMessages } = require('./core/messages');
   state.contactNames['33133333333@s.whatsapp.net'] = 'Ingrid';
   assert.equal((await resolveDisplayName(sock, '33133333333@s.whatsapp.net', state, 'Contact WhatsApp')).name, 'Ingrid');
   state.profileNames['33144444444@s.whatsapp.net'] = 'Profil Inconnu';
-  assert.equal((await resolveDisplayName(sock, '33144444444@s.whatsapp.net', state)).name, 'Profil Inconnu');
+  assert.equal((await resolveDisplayName(sock, '33144444444@s.whatsapp.net', state)).name, 'Contact WhatsApp');
 
   sent.length = 0;
   await tagall.execute(sock, { key: { remoteJid: '120@g.us', id: 'cmd' }, message: { extendedTextMessage: { contextInfo: { stanzaId: 'original-message', participant: '33111111111@s.whatsapp.net', quotedMessage: { conversation: 'hello' } } } } }, state, { from: '120@g.us', isGroup: true, args: ['rappel'], commandName: 'tagall' });

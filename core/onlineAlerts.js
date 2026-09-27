@@ -2,6 +2,7 @@ const fs = require('fs');
 const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 const { isNonPersonJid, getAllContacts } = require('./contacts');
 const { resolveDisplayName } = require('./displayNames');
+const { resolveLidToPhone } = require('./lidResolver');
 
 function ownerJid(botState) {
     return `${String(botState.PHONE_NUMBER || '').replace(/\D/g, '')}@s.whatsapp.net`;
@@ -9,6 +10,13 @@ function ownerJid(botState) {
 
 function base(jid) {
     return String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+}
+
+function sameNumber(left, right) {
+    const a = base(left).replace(/^0+/, '');
+    const b = base(right).replace(/^0+/, '');
+    if (!a || !b) return false;
+    return a === b || (a.length >= 8 && b.length >= 8 && (a.endsWith(b) || b.endsWith(a)));
 }
 
 function load(file) {
@@ -29,7 +37,7 @@ function findTarget(query, botState) {
     const digits = text.replace(/\D/g, '');
     for (const [jid, name] of Object.entries(botState.contactNames || {})) {
         if (isNonPersonJid(jid) || jid.endsWith('@lid')) continue;
-        if ((digits.length >= 7 && base(jid) === digits) || String(name).toLowerCase() === text) {
+        if ((digits.length >= 7 && sameNumber(jid, digits)) || String(name).toLowerCase() === text) {
             return { jid: jidNormalizedUser(jid), name: String(name) };
         }
     }
@@ -39,7 +47,7 @@ function findTarget(query, botState) {
     }
     for (const contact of getAllContacts()) {
         const contactName = String(contact.name).toLowerCase();
-        if (contactName === text || contactName.includes(text) || (digits.length >= 7 && base(contact.jid) === digits)) {
+        if (contactName === text || contactName.includes(text) || (digits.length >= 7 && sameNumber(contact.jid, digits))) {
             return { jid: jidNormalizedUser(contact.jid), name: String(contact.name) };
         }
     }
@@ -75,10 +83,16 @@ function remove(botState, query) {
 }
 
 async function notify(sock, botState, jid, status, profileName = '') {
-    if (status !== 'available') return;
-    const targetBase = base(jid);
+    if (!['available', 'composing', 'recording'].includes(status)) return;
+    const targetPhone = base(jid).length >= 7
+        ? base(jid)
+        : await resolveLidToPhone(sock, jid);
     for (const alert of Object.values(botState.onlineAlerts || {})) {
-        if (!alert.enabled || base(alert.jid) !== targetBase) continue;
+        if (!alert.enabled) continue;
+        const alertPhone = base(alert.jid).length >= 7
+            ? base(alert.jid)
+            : await resolveLidToPhone(sock, alert.jid);
+        if (!sameNumber(alertPhone, targetPhone)) continue;
         if (alert.lastState === 'online' && Date.now() - Number(alert.lastNotifiedAt || 0) < 300000) continue;
         const display = await resolveDisplayName(sock, alert.jid, botState, profileName || alert.name);
         alert.name = display.name;
@@ -91,10 +105,15 @@ async function notify(sock, botState, jid, status, profileName = '') {
     }
 }
 
-function markOffline(botState, jid) {
-    const targetBase = base(jid);
+async function markOffline(sock, botState, jid) {
+    const targetPhone = base(jid).length >= 7
+        ? base(jid)
+        : await resolveLidToPhone(sock, jid);
     for (const alert of Object.values(botState.onlineAlerts || {})) {
-        if (base(alert.jid) === targetBase) alert.lastState = 'offline';
+        const alertPhone = base(alert.jid).length >= 7
+            ? base(alert.jid)
+            : await resolveLidToPhone(sock, alert.jid);
+        if (sameNumber(alertPhone, targetPhone)) alert.lastState = 'offline';
     }
 }
 

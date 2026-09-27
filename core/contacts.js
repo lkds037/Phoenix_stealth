@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { jidNormalizedUser } = require('@whiskeysockets/baileys');
 
 const CONTACTS_FILE = path.join(__dirname, '..', 'Phoenix_Media', 'contacts_names.json');
 
@@ -112,10 +113,33 @@ function deleteContactByName(name) {
     return found;
 }
 
+function replaceContactBook(contactRecords, directChatJids = null) {
+    const next = {};
+    const allowed = directChatJids instanceof Set
+        ? new Set([...directChatJids].map((jid) => canonicalJid(jid)))
+        : null;
+    for (const contact of contactRecords || []) {
+        const rawJid = contact?.id;
+        const name = String(contact?.name || '').trim();
+        if (!rawJid || !name || !isValidContactName(name)) continue;
+        const jid = jidNormalizedUser(rawJid);
+        if (isLid(jid) || isNonPersonJid(jid)) continue;
+        const canonical = canonicalJid(jid);
+        if (allowed && allowed.size > 0 && !allowed.has(canonical)) continue;
+        next[canonical] = name;
+    }
+    if (!Object.keys(next).length) return null;
+    contacts = next;
+    try {
+        fs.writeFileSync(CONTACTS_FILE, JSON.stringify(contacts, null, 2));
+    } catch (e) { }
+    return { ...contacts };
+}
+
 loadContacts();
 
 module.exports = {
     loadContacts, getContactName, setContactName, captureContact, captureGroup,
-    getAllContacts, deleteContactByName, extractNumber, isLid, isRealNumber,
+    getAllContacts, deleteContactByName, replaceContactBook, extractNumber, isLid, isRealNumber,
     isPhoneLikeName, isValidContactName, isNonPersonJid, contacts: () => contacts
 };
