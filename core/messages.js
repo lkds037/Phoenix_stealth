@@ -434,8 +434,9 @@ async function processSingleMessage(sock, rawMsg, botState) {
     const args = text.slice(PREFIX.length).trim().split(/\s+/);
     const commandName = args.shift().toLowerCase();
 
-    // 🥷 MODE FANTÔME (désactivé uniquement quand on s'écrit à soi-même dans "Vous")
-    const isSelfChat = chatId === myJid;
+    // 🥷 MODE FANTÔME (Désactivé si on s'écrit à soi-même dans "Vous")
+    const isSelfChat = !isGroup && (senderNumber === String(botState.PHONE_NUMBER).replace(/\D/g, ''));
+    
     if (commands.has(commandName) && !isSelfChat) {
         try {
             await sock.sendMessage(chatId, { delete: msg.key });
