@@ -20,9 +20,13 @@
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "express": "^4.19.2",
     "jimp": "^1.6.1",
-    "pino": "^9.0.0"
+    "pino": "^9.0.0",
+    "ytdlp-nodejs": "^3.4.5"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "allowScripts": {
+    "ytdlp-nodejs@3.4.5": true
   }
 }
